@@ -1,0 +1,78 @@
+name: alfal_mobile
+description: "تطبيق الفال - Flutter mobile app for ERPNext"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.0
+  riverpod_annotation: ^2.3.0
+
+  # Navigation
+  go_router: ^14.0.0
+
+  # Networking
+  dio: ^5.4.0
+
+  # Local Storage
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.0
+
+  # UI Components
+  fl_chart: ^0.68.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.0
+  flutter_svg: ^2.0.0
+
+  # Location & Maps
+  geolocator: ^12.0.0
+  google_maps_flutter: ^2.6.0
+
+  # Camera & Scanner
+  camera: ^0.10.5
+  mobile_scanner: ^5.0.0
+
+  # Notifications
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^17.0.0
+
+  # Utils
+  intl: ^0.19.0
+  connectivity_plus: ^6.0.0
+  path_provider: ^2.1.0
+  url_launcher: ^6.2.0
+  freezed_annotation: ^2.4.0
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.0
+  freezed: ^2.5.0
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/images/
+    - assets/fonts/
+
+  # fonts:
+  #   - family: Tajawal
+  #     fonts:
+  #       - asset: assets/fonts/Tajawal-Regular.ttf
+  #       - asset: assets/fonts/Tajawal-Bold.ttf
+  #         weight: 700
