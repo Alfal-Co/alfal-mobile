@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth/auth_provider.dart';
+import '../features/auth/view/login_screen.dart';
 import '../features/dashboard/view/dashboard_screen.dart';
 import '../features/customers/view/customers_screen.dart';
 import '../features/sales/view/sales_screen.dart';
@@ -54,18 +55,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-/// Login screen placeholder
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text('شاشة تسجيل الدخول')),
-    );
-  }
-}
 
 /// Main shell with bottom navigation
 class MainShell extends StatelessWidget {
