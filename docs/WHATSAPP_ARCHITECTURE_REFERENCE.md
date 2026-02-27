@@ -1,7 +1,7 @@
 # بنية واتساب الموحدة — مرجع لتطبيق الجوال
 
 > هذا الملف مرجع تقني (endpoints + أمثلة). للمراجعة المعمارية الشاملة: `docs/ARCHITECTURE_REVIEW.md`
-> المصدر الأساسي: `Alfal-Co/alfal-brain`
+> **Infrastructure → [Alfal-Co/alfal-whatsapp](https://github.com/Alfal-Co/alfal-whatsapp)** (المرجع الوحيد للبنية التحتية)
 
 ## البنية العامة
 
