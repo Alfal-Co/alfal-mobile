@@ -11,8 +11,8 @@ class Employee {
   final String? validUpto; // Iqama expiry
   final String? userId;
   final String? gender;
-  final String? cellPhone;
-  final String? personalPhone;
+  final String? cellPhone; // Personal mobile (cell_number)
+  final String? companyPhone; // Company phone for WhatsApp (custom_company_phone)
   final String? companyEmail;
 
   const Employee({
@@ -28,7 +28,7 @@ class Employee {
     this.userId,
     this.gender,
     this.cellPhone,
-    this.personalPhone,
+    this.companyPhone,
     this.companyEmail,
   });
 
@@ -46,20 +46,20 @@ class Employee {
       userId: json['user_id'] as String?,
       gender: json['gender'] as String?,
       cellPhone: json['cell_number'] as String?,
-      personalPhone: json['personal_phone'] as String?,
+      companyPhone: json['custom_company_phone'] as String?,
       companyEmail: json['company_email'] as String?,
     );
   }
 
-  /// Whether this employee can connect WhatsApp (has a cell phone number)
+  /// Whether this employee can connect WhatsApp (has company phone)
   bool get canConnectWhatsApp =>
-      cellPhone != null && cellPhone!.isNotEmpty;
+      companyPhone != null && companyPhone!.isNotEmpty;
 
-  /// WhatsApp session name: phone number stripped of non-digits
-  /// e.g. +966555339356 → 966555339356
+  /// WhatsApp session name: company phone stripped of non-digits
+  /// e.g. +966563203204 → 966563203204
   String? get sessionName {
     if (!canConnectWhatsApp) return null;
-    return cellPhone!.replaceAll(RegExp(r'[^\d]'), '');
+    return companyPhone!.replaceAll(RegExp(r'[^\d]'), '');
   }
 
   /// First letter for avatar

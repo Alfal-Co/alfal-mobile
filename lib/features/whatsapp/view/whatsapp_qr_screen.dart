@@ -40,8 +40,9 @@ class _WhatsAppQrScreenState extends ConsumerState<WhatsAppQrScreen> {
 
     try {
       final service = ref.read(whatsappServiceProvider);
-      final state = await service.checkConnection(widget.sessionName);
 
+      // Check if session already connected
+      final state = await service.checkConnection(widget.sessionName);
       if (state == 'open') {
         setState(() {
           _connected = true;
@@ -50,7 +51,14 @@ class _WhatsAppQrScreenState extends ConsumerState<WhatsAppQrScreen> {
         return;
       }
 
-      // Not connected — get QR code
+      // Create session if it doesn't exist, then get QR
+      try {
+        await service.createSession(widget.sessionName);
+      } catch (_) {
+        // Session may already exist — ignore creation error
+      }
+
+      // Get QR code
       final qr = await service.getQrCode(widget.sessionName);
       setState(() {
         _qrBase64 = qr.base64;
@@ -62,7 +70,7 @@ class _WhatsAppQrScreenState extends ConsumerState<WhatsAppQrScreen> {
       _startPolling();
     } catch (e) {
       setState(() {
-        _error = 'فشل الاتصال بالخادم';
+        _error = 'فشل الاتصال بالخادم: $e';
         _loading = false;
       });
     }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../provider/employee_provider.dart';
 import '../model/employee.dart';
 import '../../whatsapp/view/whatsapp_qr_screen.dart';
@@ -247,8 +246,8 @@ class _ContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasAnyContact = employee.cellPhone != null ||
-        employee.personalPhone != null ||
+    final hasAnyContact = employee.companyPhone != null ||
+        employee.cellPhone != null ||
         employee.companyEmail != null;
 
     if (!hasAnyContact) return const SizedBox.shrink();
@@ -265,38 +264,19 @@ class _ContactCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            if (employee.cellPhone != null)
+            if (employee.companyPhone != null)
               _ContactRow(
                 icon: Icons.phone,
-                label: 'رقم الشركة',
-                value: employee.cellPhone!,
-                actions: [
-                  _ActionButton(
-                    icon: Icons.call,
-                    color: Colors.green,
-                    onTap: () => _launchUrl('tel:${employee.cellPhone}'),
-                  ),
-                  _ActionButton(
-                    icon: Icons.message,
-                    color: Colors.green[700]!,
-                    onTap: () => _launchWhatsApp(employee.cellPhone!),
-                  ),
-                ],
+                label: 'جوال الشركة',
+                value: employee.companyPhone!,
               ),
 
-            if (employee.personalPhone != null) ...[
-              const Divider(height: 20),
+            if (employee.cellPhone != null) ...[
+              if (employee.companyPhone != null) const Divider(height: 20),
               _ContactRow(
                 icon: Icons.phone_android,
-                label: 'رقم شخصي',
-                value: employee.personalPhone!,
-                actions: [
-                  _ActionButton(
-                    icon: Icons.call,
-                    color: Colors.green,
-                    onTap: () => _launchUrl('tel:${employee.personalPhone}'),
-                  ),
-                ],
+                label: 'جوال شخصي',
+                value: employee.cellPhone!,
               ),
             ],
 
@@ -306,13 +286,6 @@ class _ContactCard extends StatelessWidget {
                 icon: Icons.email,
                 label: 'البريد',
                 value: employee.companyEmail!,
-                actions: [
-                  _ActionButton(
-                    icon: Icons.send,
-                    color: Colors.blue,
-                    onTap: () => _launchUrl('mailto:${employee.companyEmail}'),
-                  ),
-                ],
               ),
             ],
           ],
@@ -321,33 +294,17 @@ class _ContactCard extends StatelessWidget {
     );
   }
 
-  void _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
-  void _launchWhatsApp(String phone) async {
-    final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    final uri = Uri.parse('https://wa.me/$cleaned');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
 }
 
 class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final List<Widget> actions;
 
   const _ContactRow({
     required this.icon,
     required this.label,
     required this.value,
-    this.actions = const [],
   });
 
   @override
@@ -366,33 +323,7 @@ class _ContactRow extends StatelessWidget {
             ],
           ),
         ),
-        ...actions,
       ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: IconButton(
-        icon: Icon(icon, size: 20),
-        color: color,
-        onPressed: onTap,
-        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      ),
     );
   }
 }
@@ -489,7 +420,7 @@ class _WhatsAppCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  employee.cellPhone!,
+                  employee.companyPhone!,
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
@@ -522,7 +453,7 @@ class _WhatsAppCard extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => ConversationsScreen(
                         sessionName: session,
-                        employeePhone: employee.cellPhone!,
+                        employeePhone: employee.companyPhone!,
                       ),
                     ),
                   );
