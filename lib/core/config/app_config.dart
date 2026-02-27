@@ -19,6 +19,14 @@ class AppConfig {
   // Claude AI
   static const String claudeApiKey = String.fromEnvironment('CLAUDE_API_KEY');
 
+  // Evolution API (WhatsApp)
+  static const String evolutionApiUrl = String.fromEnvironment(
+    'EVOLUTION_API_URL',
+    defaultValue: 'https://w.alfal.co:8085',
+  );
+  static const String evolutionApiKey =
+      String.fromEnvironment('EVOLUTION_API_KEY');
+
   // API Timeouts
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);

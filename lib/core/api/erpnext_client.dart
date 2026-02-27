@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 
@@ -103,8 +104,9 @@ class ErpNextClient {
     int? limitStart,
   }) async {
     final params = <String, dynamic>{};
-    if (fields != null) params['fields'] = fields;
-    if (filters != null) params['filters'] = filters;
+    // Frappe expects fields and filters as JSON strings
+    if (fields != null) params['fields'] = jsonEncode(fields);
+    if (filters != null) params['filters'] = jsonEncode(filters);
     if (orderBy != null) params['order_by'] = orderBy;
     if (limitPageLength != null) {
       params['limit_page_length'] = limitPageLength;
@@ -131,6 +133,37 @@ class ErpNextClient {
   ) async {
     final response = await _dio.post('/api/resource/$doctype', data: data);
     return response.data['data'] as Map<String, dynamic>;
+  }
+
+  /// Update an existing document
+  Future<Map<String, dynamic>> updateDoc(
+    String doctype,
+    String name,
+    Map<String, dynamic> data,
+  ) async {
+    final response =
+        await _dio.put('/api/resource/$doctype/$name', data: data);
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  /// Upload a file and attach to a document
+  Future<Map<String, dynamic>> uploadFile({
+    required String filePath,
+    required String fileName,
+    String? doctype,
+    String? docname,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      if (doctype != null) 'doctype': doctype,
+      if (docname != null) 'docname': docname,
+      'is_private': 1,
+    });
+    final response = await _dio.post(
+      '/api/method/upload_file',
+      data: formData,
+    );
+    return response.data['message'] as Map<String, dynamic>;
   }
 
   /// Call a whitelisted API method

@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../provider/sales_provider.dart';
-import '../model/sales_invoice.dart';
-import 'invoice_detail_screen.dart';
+import '../provider/procurement_provider.dart';
+import '../model/material_request.dart';
+import 'widgets/workflow_state_badge.dart';
+import 'create_request_screen.dart';
+import 'request_detail_screen.dart';
 
-class SalesScreen extends ConsumerStatefulWidget {
-  const SalesScreen({super.key});
+class ProcurementScreen extends ConsumerStatefulWidget {
+  const ProcurementScreen({super.key});
 
   @override
-  ConsumerState<SalesScreen> createState() => _SalesScreenState();
+  ConsumerState<ProcurementScreen> createState() => _ProcurementScreenState();
 }
 
-class _SalesScreenState extends ConsumerState<SalesScreen> {
+class _ProcurementScreenState extends ConsumerState<ProcurementScreen> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   bool _showSearch = false;
@@ -33,13 +34,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      ref.read(salesProvider.notifier).loadMore();
+      ref.read(procurementProvider.notifier).loadMore();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(salesProvider);
+    final state = ref.watch(procurementProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -51,15 +52,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   hintText: 'بحث باسم العميل...',
                   border: InputBorder.none,
                 ),
-                onSubmitted: (q) => ref.read(salesProvider.notifier).search(q),
+                onSubmitted: (q) =>
+                    ref.read(procurementProvider.notifier).search(q),
               )
-            : Text('المبيعات (${state.total})'),
+            : Text('المشتريات (${state.total})'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.people),
-            tooltip: 'العملاء',
-            onPressed: () => context.push('/customers'),
-          ),
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search),
             onPressed: () {
@@ -67,33 +64,36 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 _showSearch = !_showSearch;
                 if (!_showSearch) {
                   _searchController.clear();
-                  ref.read(salesProvider.notifier).search('');
+                  ref.read(procurementProvider.notifier).search('');
                 }
               });
             },
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _createRequest(),
+        child: const Icon(Icons.add),
+      ),
       body: Column(
         children: [
-          // Filter chips
           _FilterBar(
             current: state.filter,
-            onChanged: (f) => ref.read(salesProvider.notifier).setFilter(f),
+            onChanged: (f) =>
+                ref.read(procurementProvider.notifier).setFilter(f),
           ),
-          // Invoice list
           Expanded(child: _buildBody(state)),
         ],
       ),
     );
   }
 
-  Widget _buildBody(SalesState state) {
-    if (state.isLoading && state.invoices.isEmpty) {
+  Widget _buildBody(ProcurementListState state) {
+    if (state.isLoading && state.requests.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.error != null && state.invoices.isEmpty) {
+    if (state.error != null && state.requests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -103,8 +103,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             Text(state.error!),
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed: () =>
-                  ref.read(salesProvider.notifier).loadInvoices(refresh: true),
+              onPressed: () => ref
+                  .read(procurementProvider.notifier)
+                  .loadRequests(refresh: true),
               icon: const Icon(Icons.refresh),
               label: const Text('إعادة المحاولة'),
             ),
@@ -113,15 +114,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       );
     }
 
-    if (state.invoices.isEmpty) {
+    if (state.requests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long, size: 48, color: Colors.grey[400]),
+            Icon(Icons.shopping_cart_outlined,
+                size: 48, color: Colors.grey[400]),
             const SizedBox(height: 12),
             Text(
-              'لا توجد فواتير',
+              'لا توجد طلبات شراء',
               style: TextStyle(color: Colors.grey[600]),
             ),
           ],
@@ -131,38 +133,46 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     return RefreshIndicator(
       onRefresh: () =>
-          ref.read(salesProvider.notifier).loadInvoices(refresh: true),
+          ref.read(procurementProvider.notifier).loadRequests(refresh: true),
       child: ListView.builder(
         controller: _scrollController,
-        itemCount: state.invoices.length + (state.hasMore ? 1 : 0),
+        itemCount: state.requests.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= state.invoices.length) {
+          if (index >= state.requests.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          return _InvoiceTile(
-            invoice: state.invoices[index],
-            onTap: () => _openDetail(state.invoices[index]),
+          return _RequestTile(
+            request: state.requests[index],
+            onTap: () => _openDetail(state.requests[index]),
           );
         },
       ),
     );
   }
 
-  void _openDetail(SalesInvoice invoice) {
+  void _openDetail(MaterialRequest request) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => InvoiceDetailScreen(invoiceId: invoice.name),
+        builder: (_) => RequestDetailScreen(requestId: request.name),
+      ),
+    );
+  }
+
+  void _createRequest() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const CreateRequestScreen(),
       ),
     );
   }
 }
 
 class _FilterBar extends StatelessWidget {
-  final InvoiceFilter current;
-  final ValueChanged<InvoiceFilter> onChanged;
+  final ProcurementFilter current;
+  final ValueChanged<ProcurementFilter> onChanged;
 
   const _FilterBar({required this.current, required this.onChanged});
 
@@ -173,17 +183,19 @@ class _FilterBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          _chip('الكل', InvoiceFilter.all),
-          _chip('غير مدفوعة', InvoiceFilter.unpaid),
-          _chip('مدفوعة', InvoiceFilter.paid),
-          _chip('مسودة', InvoiceFilter.draft),
-          _chip('ملغية', InvoiceFilter.cancelled),
+          _chip('الكل', ProcurementFilter.all),
+          _chip('بانتظار إجراءي', ProcurementFilter.pendingMyAction),
+          _chip('مسودة', ProcurementFilter.draft),
+          _chip('المشرف', ProcurementFilter.pendingSupervisor),
+          _chip('المشتريات', ProcurementFilter.pendingPurchase),
+          _chip('المالية', ProcurementFilter.pendingFinance),
+          _chip('تم الاستلام', ProcurementFilter.received),
         ],
       ),
     );
   }
 
-  Widget _chip(String label, InvoiceFilter filter) {
+  Widget _chip(String label, ProcurementFilter filter) {
     final selected = current == filter;
     return Padding(
       padding: const EdgeInsets.only(left: 8),
@@ -196,16 +208,14 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-class _InvoiceTile extends StatelessWidget {
-  final SalesInvoice invoice;
+class _RequestTile extends StatelessWidget {
+  final MaterialRequest request;
   final VoidCallback onTap;
 
-  const _InvoiceTile({required this.invoice, required this.onTap});
+  const _RequestTile({required this.request, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
@@ -216,11 +226,11 @@ class _InvoiceTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: invoice name + status
+              // Top row: request name + state badge
               Row(
                 children: [
                   Text(
-                    invoice.name,
+                    request.name,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[600],
@@ -228,103 +238,72 @@ class _InvoiceTile extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  _StatusBadge(invoice: invoice),
+                  WorkflowStateBadge(procurementState: request.state),
                 ],
               ),
               const SizedBox(height: 8),
 
               // Customer name
-              Text(
-                invoice.customerName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+              if (request.customer != null && request.customer!.isNotEmpty)
+                Text(
+                  request.customer!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+
+              // Creator info
+              if (request.ownerName != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.person_outline,
+                        size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      request.ownerName!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
 
-              // Bottom row: date + amount
+              // Bottom row: date + qty + WhatsApp indicator
               Row(
                 children: [
                   Icon(Icons.calendar_today,
                       size: 14, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
-                    invoice.postingDate,
+                    request.transactionDate,
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                  const Spacer(),
-                  Text(
-                    '${invoice.grandTotal.toStringAsFixed(2)} ر.س',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Outstanding amount if any
-              if (invoice.isOverdue) ...[
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
+                  const SizedBox(width: 16),
+                  if (request.totalQty != null && request.totalQty! > 0) ...[
+                    Icon(Icons.inventory_2,
+                        size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
                     Text(
-                      'متبقي: ${invoice.outstandingAmount.toStringAsFixed(2)} ر.س',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red[600],
-                        fontWeight: FontWeight.w500,
-                      ),
+                      '${request.totalQty!.toStringAsFixed(0)} صنف',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
-                ),
-              ],
+                  const Spacer(),
+                  if (request.hasWhatsappSource)
+                    Icon(Icons.chat,
+                        size: 16, color: Colors.green[600]),
+                  if (request.isRejected)
+                    Icon(Icons.cancel,
+                        size: 16, color: Colors.red[600]),
+                ],
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final SalesInvoice invoice;
-
-  const _StatusBadge({required this.invoice});
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-
-    if (invoice.isCancelled) {
-      bg = Colors.red[50]!;
-      fg = Colors.red[700]!;
-    } else if (invoice.isDraft) {
-      bg = Colors.orange[50]!;
-      fg = Colors.orange[700]!;
-    } else if (invoice.isPaid) {
-      bg = Colors.green[50]!;
-      fg = Colors.green[700]!;
-    } else {
-      bg = Colors.blue[50]!;
-      fg = Colors.blue[700]!;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        invoice.statusLabel,
-        style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -9,6 +9,7 @@ class DashboardData {
   final int todayInvoices;
   final double todaySales;
   final int totalSuppliers;
+  final int pendingProcurement;
 
   const DashboardData({
     this.isLoading = true,
@@ -17,6 +18,7 @@ class DashboardData {
     this.todayInvoices = 0,
     this.todaySales = 0,
     this.totalSuppliers = 0,
+    this.pendingProcurement = 0,
   });
 
   DashboardData copyWith({
@@ -26,6 +28,7 @@ class DashboardData {
     int? todayInvoices,
     double? todaySales,
     int? totalSuppliers,
+    int? pendingProcurement,
   }) {
     return DashboardData(
       isLoading: isLoading ?? this.isLoading,
@@ -34,6 +37,7 @@ class DashboardData {
       todayInvoices: todayInvoices ?? this.todayInvoices,
       todaySales: todaySales ?? this.todaySales,
       totalSuppliers: totalSuppliers ?? this.totalSuppliers,
+      pendingProcurement: pendingProcurement ?? this.pendingProcurement,
     );
   }
 }
@@ -56,6 +60,7 @@ class DashboardNotifier extends StateNotifier<DashboardData> {
         client.getCount('Supplier'),
         _getTodayInvoiceCount(client),
         _getTodaySalesTotal(client),
+        _getPendingProcurementCount(client),
       ]);
 
       state = state.copyWith(
@@ -64,6 +69,7 @@ class DashboardNotifier extends StateNotifier<DashboardData> {
         totalSuppliers: results[1] as int,
         todayInvoices: results[2] as int,
         todaySales: results[3] as double,
+        pendingProcurement: results[4] as int,
       );
     } catch (e) {
       state = state.copyWith(
@@ -81,6 +87,20 @@ class DashboardNotifier extends StateNotifier<DashboardData> {
         filters: [
           ['posting_date', '=', today],
           ['docstatus', '=', 1],
+        ],
+      );
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<int> _getPendingProcurementCount(dynamic client) async {
+    try {
+      return await client.getCount(
+        'Material Request',
+        filters: [
+          ['material_request_type', '=', 'Purchase'],
+          ['workflow_state', 'not in', ['Draft', 'Received']],
         ],
       );
     } catch (_) {

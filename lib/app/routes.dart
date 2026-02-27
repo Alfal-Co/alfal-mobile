@@ -8,6 +8,8 @@ import '../features/customers/view/customers_screen.dart';
 import '../features/sales/view/sales_screen.dart';
 import '../features/payments/view/payments_screen.dart';
 import '../features/ai_assistant/view/ai_chat_screen.dart';
+import '../features/procurement/view/procurement_screen.dart';
+import '../features/hr/view/my_profile_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -35,16 +37,25 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: '/customers',
-            builder: (context, state) => const CustomersScreen(),
-          ),
-          GoRoute(
             path: '/sales',
             builder: (context, state) => const SalesScreen(),
           ),
           GoRoute(
+            path: '/procurement',
+            builder: (context, state) => const ProcurementScreen(),
+          ),
+          GoRoute(
+            path: '/hr',
+            builder: (context, state) => const MyProfileScreen(),
+          ),
+          GoRoute(
             path: '/payments',
             builder: (context, state) => const PaymentsScreen(),
+          ),
+          // Customers accessible via navigation from Sales screen
+          GoRoute(
+            path: '/customers',
+            builder: (context, state) => const CustomersScreen(),
           ),
           GoRoute(
             path: '/ai',
@@ -70,30 +81,30 @@ class MainShell extends StatelessWidget {
         onDestinationSelected: (index) => _onTap(context, index),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard), label: 'الرئيسية'),
-          NavigationDestination(icon: Icon(Icons.people), label: 'العملاء'),
           NavigationDestination(icon: Icon(Icons.receipt_long), label: 'المبيعات'),
+          NavigationDestination(icon: Icon(Icons.shopping_cart), label: 'المشتريات'),
+          NavigationDestination(icon: Icon(Icons.badge), label: 'الموظفين'),
           NavigationDestination(icon: Icon(Icons.payments), label: 'التحصيل'),
-          NavigationDestination(icon: Icon(Icons.smart_toy), label: 'المساعد'),
         ],
       ),
     );
   }
 
   int _getIndex(String location) {
-    if (location.startsWith('/customers')) return 1;
-    if (location.startsWith('/sales')) return 2;
-    if (location.startsWith('/payments')) return 3;
-    if (location.startsWith('/ai')) return 4;
+    if (location.startsWith('/sales')) return 1;
+    if (location.startsWith('/procurement')) return 2;
+    if (location.startsWith('/hr')) return 3;
+    if (location.startsWith('/payments')) return 4;
     return 0;
   }
 
   void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0: context.go('/dashboard');
-      case 1: context.go('/customers');
-      case 2: context.go('/sales');
-      case 3: context.go('/payments');
-      case 4: context.go('/ai');
+      case 1: context.go('/sales');
+      case 2: context.go('/procurement');
+      case 3: context.go('/hr');
+      case 4: context.go('/payments');
     }
   }
 }

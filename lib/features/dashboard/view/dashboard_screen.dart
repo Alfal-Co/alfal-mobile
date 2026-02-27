@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/auth/auth_provider.dart';
 import '../provider/dashboard_provider.dart';
 
@@ -193,6 +194,72 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+
+              // Procurement card
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => context.go('/procurement'),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Colors.orange[50],
+                          child: Icon(Icons.shopping_cart,
+                              color: Colors.orange[700]),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('طلبات الشراء',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                          fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text(
+                                dashboard.pendingProcurement > 0
+                                    ? '${dashboard.pendingProcurement} طلب بانتظار الإجراء'
+                                    : 'لا توجد طلبات معلقة',
+                                style: TextStyle(
+                                  color: dashboard.pendingProcurement > 0
+                                      ? Colors.orange[700]
+                                      : Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (dashboard.pendingProcurement > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${dashboard.pendingProcurement}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        Icon(Icons.chevron_left, color: Colors.grey[400]),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 
