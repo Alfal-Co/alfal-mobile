@@ -14,7 +14,6 @@ class Employee {
   final String? cellPhone;
   final String? personalPhone;
   final String? companyEmail;
-  final String? whatsappSession; // Custom field: Employee.whatsapp_session
 
   const Employee({
     required this.name,
@@ -31,7 +30,6 @@ class Employee {
     this.cellPhone,
     this.personalPhone,
     this.companyEmail,
-    this.whatsappSession,
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
@@ -50,14 +48,19 @@ class Employee {
       cellPhone: json['cell_phone'] as String?,
       personalPhone: json['personal_phone'] as String?,
       companyEmail: json['company_email'] as String?,
-      whatsappSession: json['whatsapp_session'] as String?,
     );
   }
 
-  /// WhatsApp session name: custom field or derived from Employee ID
-  /// e.g. HR-EMP-00001 → wa_HR-EMP-00001
-  String get sessionName =>
-      whatsappSession ?? 'wa_${name.replaceAll(' ', '_')}';
+  /// Whether this employee can connect WhatsApp (has a cell phone number)
+  bool get canConnectWhatsApp =>
+      cellPhone != null && cellPhone!.isNotEmpty;
+
+  /// WhatsApp session name: phone number stripped of non-digits
+  /// e.g. +966555339356 → 966555339356
+  String? get sessionName {
+    if (!canConnectWhatsApp) return null;
+    return cellPhone!.replaceAll(RegExp(r'[^\d]'), '');
+  }
 
   /// First letter for avatar
   String get initial =>

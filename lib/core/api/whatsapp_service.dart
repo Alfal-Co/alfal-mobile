@@ -44,6 +44,7 @@ class WaMessage {
 
 /// Abstract WhatsApp service interface
 abstract class WhatsAppService {
+  Future<void> createSession(String session);
   Future<QrResult> getQrCode(String session);
   Future<String> checkConnection(String session);
   Future<void> sendText(String session, String to, String text);
@@ -64,6 +65,18 @@ class EvolutionWhatsAppService implements WhatsAppService {
           'apikey': AppConfig.evolutionApiKey,
         },
       ),
+    );
+  }
+
+  @override
+  Future<void> createSession(String session) async {
+    await _dio.post(
+      '/instance/create',
+      data: {
+        'instanceName': session,
+        'integration': 'WHATSAPP-BAILEYS',
+        'qrcode': true,
+      },
     );
   }
 

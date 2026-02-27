@@ -32,27 +32,56 @@ final whatsappMessagesProvider =
       .toList();
 });
 
-/// Fetch all conversations grouped by phone number (latest message per contact)
+/// Fetch conversations for a specific employee phone number
+/// Groups messages by contact, showing latest message per contact
 final conversationsProvider =
-    FutureProvider<List<WaMessage>>((ref) async {
+    FutureProvider.family<List<WaMessage>, String>((ref, employeePhone) async {
   final client = ref.read(erpnextClientProvider);
+
+  // Fetch messages where employee phone appears as sender OR receiver
   final results = await client.getList(
     'WhatsApp Message',
     fields: ['name', '`from`', 'to', 'message', 'type', 'creation'],
+    filters: [
+      ['to', 'like', '%$employeePhone%'],
+    ],
     orderBy: 'creation desc',
     limitPageLength: 200,
   );
 
-  final messages = results
-      .map((json) => WaMessage.fromJson(json as Map<String, dynamic>))
-      .toList();
+  // Also fetch incoming messages (from contains the employee phone)
+  final incomingResults = await client.getList(
+    'WhatsApp Message',
+    fields: ['name', '`from`', 'to', 'message', 'type', 'creation'],
+    filters: [
+      ['from', 'like', '%$employeePhone%'],
+    ],
+    orderBy: 'creation desc',
+    limitPageLength: 200,
+  );
 
-  // Group by phone: keep only latest message per contact
+  // Merge and deduplicate by message name
+  final Map<String, WaMessage> allMessages = {};
+  for (final json in results) {
+    final msg = WaMessage.fromJson(json as Map<String, dynamic>);
+    allMessages[msg.name] = msg;
+  }
+  for (final json in incomingResults) {
+    final msg = WaMessage.fromJson(json as Map<String, dynamic>);
+    allMessages[msg.name] = msg;
+  }
+
+  // Sort by creation desc
+  final sorted = allMessages.values.toList()
+    ..sort((a, b) => b.creation.compareTo(a.creation));
+
+  // Group by contact phone: keep only latest message per contact
   final Map<String, WaMessage> latestByPhone = {};
-  for (final msg in messages) {
-    final phone = msg.isIncoming ? msg.from : msg.to;
-    if (phone.isNotEmpty && !latestByPhone.containsKey(phone)) {
-      latestByPhone[phone] = msg;
+  for (final msg in sorted) {
+    // The "other" party is whoever is NOT the employee
+    final otherPhone = msg.isIncoming ? msg.from : msg.to;
+    if (otherPhone.isNotEmpty && !latestByPhone.containsKey(otherPhone)) {
+      latestByPhone[otherPhone] = msg;
     }
   }
 

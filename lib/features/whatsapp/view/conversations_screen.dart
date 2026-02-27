@@ -5,11 +5,19 @@ import '../provider/whatsapp_provider.dart';
 import 'chat_screen.dart';
 
 class ConversationsScreen extends ConsumerWidget {
-  const ConversationsScreen({super.key});
+  final String sessionName;
+  final String employeePhone;
+
+  const ConversationsScreen({
+    super.key,
+    required this.sessionName,
+    required this.employeePhone,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final conversationsAsync = ref.watch(conversationsProvider);
+    final conversationsAsync =
+        ref.watch(conversationsProvider(employeePhone));
 
     return Scaffold(
       appBar: AppBar(title: const Text('محادثات واتساب')),
@@ -25,7 +33,8 @@ class ConversationsScreen extends ConsumerWidget {
                   style: TextStyle(color: Colors.grey[600])),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => ref.invalidate(conversationsProvider),
+                onPressed: () =>
+                    ref.invalidate(conversationsProvider(employeePhone)),
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
               ),
@@ -49,7 +58,8 @@ class ConversationsScreen extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(conversationsProvider),
+            onRefresh: () async =>
+                ref.invalidate(conversationsProvider(employeePhone)),
             child: ListView.builder(
               itemCount: conversations.length,
               itemBuilder: (context, index) {
@@ -69,7 +79,10 @@ class ConversationsScreen extends ConsumerWidget {
     final phone = msg.isIncoming ? msg.from : msg.to;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatScreen(phone: phone),
+        builder: (_) => ChatScreen(
+          phone: phone,
+          sessionName: sessionName,
+        ),
       ),
     );
   }

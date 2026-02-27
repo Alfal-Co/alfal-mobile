@@ -92,8 +92,9 @@ class _ProfileContent extends StatelessWidget {
         _InfoCard(employee: employee),
         const SizedBox(height: 12),
 
-        // WhatsApp section
-        _WhatsAppCard(employee: employee),
+        // WhatsApp section (only if employee has a phone number)
+        if (employee.canConnectWhatsApp)
+          _WhatsAppCard(employee: employee),
       ],
     );
   }
@@ -470,6 +471,8 @@ class _WhatsAppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final session = employee.sessionName!;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -486,7 +489,7 @@ class _WhatsAppCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  employee.sessionName,
+                  employee.cellPhone!,
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
@@ -500,8 +503,7 @@ class _WhatsAppCard extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => WhatsAppQrScreen(
-                          sessionName: employee.sessionName),
+                      builder: (_) => WhatsAppQrScreen(sessionName: session),
                     ),
                   );
                 },
@@ -518,7 +520,10 @@ class _WhatsAppCard extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const ConversationsScreen(),
+                      builder: (_) => ConversationsScreen(
+                        sessionName: session,
+                        employeePhone: employee.cellPhone!,
+                      ),
                     ),
                   );
                 },
