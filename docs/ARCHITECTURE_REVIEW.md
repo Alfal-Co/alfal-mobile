@@ -3,192 +3,300 @@
 > التاريخ: 2026-02-27
 > من: Claude Code (مسؤول alfal-brain + بنية واتساب الموحدة)
 > الغرض: ضمان توافق التطبيق مع البنية التحتية المبنية، وتحديد خطة العمل المستقبلي
+> آخر تحديث: 2026-02-27 — تصحيح نموذج الجلسات (الرقم للموظف وليس للقسم/البوت)
 
 ---
 
-## 1. تقييم ما تم بناؤه
+## 1. الحقيقة الجوهرية: الرقم للموظف وليس للبوت
 
-### التطبيق (alfal-mobile) — ممتاز
-| الميزة | التقييم | ملاحظات |
-|--------|---------|---------|
-| HR Profile | ⭐⭐⭐⭐⭐ | Employee model كامل، انتهاء إقامة، أزرار تواصل |
-| WhatsApp QR | ⭐⭐⭐⭐⭐ | base64 decode، polling، pairing code، error handling |
-| WhatsApp Service | ⭐⭐⭐⭐⭐ | abstract interface — يدعم تبديل المزود مستقبلاً |
-| المبيعات + التحصيل | ⭐⭐⭐⭐⭐ | pagination، فلاتر، تفاصيل |
-| المشتريات + AI | ⭐⭐⭐⭐ | workflow متقدم + Raven integration |
+**بعد تعطيل Baileys** في كل البوتات الستة، أرقام الشركة **رجعت لأصحابها** (المدراء/الموظفين):
 
-### البنية التحتية (alfal-brain) — تعمل
-| المكون | الحالة | التفاصيل |
-|--------|--------|----------|
-| Evolution API v2.3.7 | ✅ شغال | 7 جلسات (alfal-test متصل + 6 بانتظار QR) |
-| n8n WA Router | ✅ شغال | webhook → brain.raw_events + brain.messages + ERPNext |
-| brain schema | ✅ 25 جدول | messages, groups, group_members, routing_rules, identities... |
-| WAHA | ⏸️ متوقف | احتياطي فقط — لا تستخدمه |
-| Baileys | ❌ معطّل | أُوقف في كل الـ 6 بوتات |
+```
+❌ خطأ سابق:  +966555339356 = "بوت المالية"         ← البوت يملك الرقم
+❌ خطأ ثاني:   +966555339356 = "جلسة قسم المالية"    ← القسم يملك الرقم
+✅ صحيح:       +966555339356 = مدير المالية (إنسان)  ← الموظف يملك رقمه
+               بوت المالية = مستخدم ERPNext (finance-bot@alfal.co) يساعد المدير
+```
+
+### القاعدة:
+| الكيان | ملكيته | هويته في النظام |
+|--------|--------|----------------|
+| **رقم الواتساب** | الموظف (cell_phone في ERPNext) | session في Evolution API باسم الرقم |
+| **البوت** | النظام | مستخدم ERPNext (finance-bot@alfal.co) — يسجل إجراءاته باسمه |
+| **الرسائل** | تمر عبر رقم الموظف | n8n يوجّه للبوت المناسب ويخزن في brain |
 
 ---
 
-## 2. نقاط التعارض المكتشفة (3 نقاط)
+## 2. نموذج الجلسات الصحيح
 
-### التعارض #1: نموذج الجلسات (حرج)
-
-**الحالي في التطبيق:**
+### كيف يعمل:
 ```
-كل موظف → جلسة خاصة (wa_EMP-0001, wa_EMP-0002...)
-```
-
-**الواقع في البنية التحتية:**
-```
-6 أرقام شركة فقط → 6 جلسات (secretary, sales, hr, purchasing, finance, accounting)
-```
-
-**لماذا هذا تعارض:** لا يمكن إنشاء 67 جلسة واتساب لأن كل جلسة تحتاج رقم هاتف منفصل. الشركة عندها 6 أرقام فقط.
-
-**الحل الصحيح:**
-```
-Employee.department → routing_rules → session_name
-
-مثال:
-  أحمد (قسم المبيعات) → department = "Sales" → session = "sales"
-  سارة (قسم HR)       → department = "HR"    → session = "hr"
+الموظف يدخل التطبيق
+  → التطبيق يسحب بياناته من ERPNext (بما فيها cell_phone)
+  → لو cell_phone موجود:
+      → session_name = الرقم بدون + (مثل: 966555339356)
+      → فحص حالة الاتصال: GET /instance/connectionState/{session_name}
+      → لو "open" → متصل ✅ (يعرض المحادثات)
+      → لو لا → إنشاء session: POST /instance/create
+      → جلب QR: GET /instance/connect/{session_name}
+      → الموظف يمسح QR → متصل
+  → لو cell_phone فاضي:
+      → "لا يوجد رقم شركة مرتبط بحسابك"
 ```
 
-**التطبيق:** بدل `Employee.whatsapp_session` (custom field per employee)، نستخدم:
+### لا تحفظ أرقام في الكود:
 ```dart
-// employee.dart
+// ❌ خطأ — لا تحفظ أرقام
+const sessionPhones = {
+  'sales': '+966550442804',
+  'hr': '+966565564518',
+};
+
+// ❌ خطأ — لا تربط قسم بجلسة
+String _departmentToSession(String dept) => ...
+
+// ✅ صحيح — الرقم يجي من ERPNext فقط
 String get sessionName {
-  // أولوية 1: Custom field مباشر (لحالات خاصة)
-  if (whatsappSession != null && whatsappSession!.isNotEmpty) {
-    return whatsappSession!;
-  }
-  // أولوية 2: ربط بالقسم عبر routing_rules
-  return _departmentToSession(department);
-}
-
-static String _departmentToSession(String? dept) {
-  switch (dept?.toLowerCase()) {
-    case 'sales':
-    case 'المبيعات':
-      return 'sales';
-    case 'hr':
-    case 'human resources':
-    case 'الموارد البشرية':
-      return 'hr';
-    case 'purchasing':
-    case 'المشتريات':
-      return 'purchasing';
-    case 'finance':
-    case 'المالية':
-      return 'finance';
-    case 'accounting':
-    case 'المحاسبة':
-      return 'accounting';
-    default:
-      return 'secretary'; // الجلسة الافتراضية
-  }
+  if (cellPhone == null || cellPhone!.isEmpty) return '';
+  // ينظّف الرقم: +966555339356 → 966555339356
+  return cellPhone!.replaceAll(RegExp(r'[^0-9]'), '');
 }
 ```
 
-### التعارض #2: المحادثات بدون فلتر
+### من يحتاج جلسة واتساب؟
+**فقط الموظفين اللي عندهم `cell_phone`** (رقم شركة) في ERPNext. مو كل الـ 67 موظف — بس المدراء واللي عندهم أرقام شركة.
 
-**الحالي:** `conversationsProvider` يجلب كل الرسائل — كل موظف يشوف كل شيء.
+---
 
-**الحل:** فلتر برقم القسم:
+## 3. البوت كمساعد (وليس مالك الرقم)
+
+### الفصل الواضح:
+```
+┌─────────────────────────────────────────────────────────┐
+│  مدير المالية (إنسان)                                    │
+│  رقمه: +966555339356                                     │
+│  واتسابه: مربوط عبر QR في التطبيق                       │
+│                                                          │
+│  عميل يرسل رسالة لرقمه                                   │
+│         │                                                │
+│         ▼                                                │
+│  Evolution API يستقبل ← webhook → n8n                   │
+│         │                                                │
+│         ├── يخزن في brain.messages ✅                    │
+│         ├── يظهر في التطبيق (المدير يشوفها) ✅           │
+│         └── يوجّه للبوت المالي (finance-bot) ✅          │
+│                    │                                     │
+│                    ▼                                     │
+│  البوت يحلل الرسالة:                                     │
+│    - "كم رصيد فاتورة 123" → يجيب من ERPNext             │
+│    - "سوّي سند قبض" → يسوي Payment Entry باسم البوت     │
+│    - يرد عبر Evolution API باستخدام رقم المدير          │
+│                                                          │
+│  كل إجراء في ERPNext يُسجل بمستخدم البوت:               │
+│    Created by: finance-bot@alfal.co                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### هوية البوت في ERPNext:
+| البوت | المستخدم في ERPNext | الرقم المرتبط (رقم المدير) |
+|-------|---------------------|---------------------------|
+| سكرتير المدير | botmhd@alfal.co | يُحدد من ERPNext Employee |
+| مساعد المبيعات | ceo-bot@alfal.co | يُحدد من ERPNext Employee |
+| الموارد البشرية | hr-bot@alfal.co | يُحدد من ERPNext Employee |
+| المشتريات | purchase-bot@alfal.co | يُحدد من ERPNext Employee |
+| المالية | finance-bot@alfal.co | يُحدد من ERPNext Employee |
+| المحاسبة | accounting-bot@alfal.co | يُحدد من ERPNext Employee |
+
+---
+
+## 4. التعديلات المطلوبة على التطبيق
+
+### 4.1 Employee Model (`lib/features/hr/model/employee.dart`)
+
+**الحالي (خطأ):**
 ```dart
-final departmentConversationsProvider =
-    FutureProvider.family<List<WaMessage>, String>((ref, deptPhone) async {
+String get sessionName =>
+    whatsappSession ?? 'wa_${name.replaceAll(' ', '_')}';
+```
+
+**المطلوب:**
+```dart
+/// اسم الجلسة = رقم الشركة بدون رموز
+/// لو ما فيه رقم شركة = ما يقدر يربط واتساب
+String get sessionName {
+  if (cellPhone == null || cellPhone!.isEmpty) return '';
+  return cellPhone!.replaceAll(RegExp(r'[^0-9]'), '');
+}
+
+/// هل يقدر يربط واتساب؟
+bool get canConnectWhatsApp =>
+    cellPhone != null && cellPhone!.isNotEmpty;
+```
+
+- **احذف** `whatsappSession` field و `_departmentToSession()` والأرقام المحفوظة
+- **لا تحفظ أرقام** في الكود — كلها تجي من ERPNext
+
+### 4.2 WhatsApp Service (`lib/core/api/whatsapp_service.dart`)
+
+**أضف** method لإنشاء session جديد:
+```dart
+abstract class WhatsAppService {
+  Future<QrResult> getQrCode(String session);
+  Future<String> checkConnection(String session);
+  Future<void> sendText(String session, String to, String text);
+  Future<void> createSession(String sessionName);  // ← جديد
+}
+```
+
+**التنفيذ في Evolution:**
+```dart
+@override
+Future<void> createSession(String sessionName) async {
+  await _dio.post('/instance/create', data: {
+    'instanceName': sessionName,
+    'integration': 'WHATSAPP-BAILEYS',
+    'qrcode': true,
+  });
+}
+```
+
+### 4.3 WhatsApp Provider (`lib/features/whatsapp/provider/whatsapp_provider.dart`)
+
+**conversationsProvider:**
+```dart
+final conversationsProvider = FutureProvider<List<WaMessage>>((ref) async {
   final client = ref.read(erpnextClientProvider);
-  final results = await client.getList(
+  final employee = await ref.watch(myEmployeeProvider.future);
+
+  if (employee == null || !employee.canConnectWhatsApp) return [];
+
+  final phone = employee.cellPhone!;
+
+  // فلتر برقم الموظف نفسه (مو رقم القسم)
+  final incoming = await client.getList(
     'WhatsApp Message',
     fields: ['name', '`from`', 'to', 'message', 'type', 'creation'],
-    filters: [
-      ['from', 'like', '%$deptPhone%'],  // أو to
-    ],
+    filters: [['to', 'like', '%$phone%']],
     orderBy: 'creation desc',
-    limitPageLength: 100,
+    limitPageLength: 200,
   );
-  // ... group by phone
+
+  final outgoing = await client.getList(
+    'WhatsApp Message',
+    fields: ['name', '`from`', 'to', 'message', 'type', 'creation'],
+    filters: [['from', 'like', '%$phone%']],
+    orderBy: 'creation desc',
+    limitPageLength: 200,
+  );
+
+  // دمج وترتيب وتجميع بالرقم...
 });
 ```
 
-### التعارض #3: الإرسال المباشر لـ Evolution API
+### 4.4 Profile Screen (`lib/features/hr/view/my_profile_screen.dart`)
 
-**الحالي:** التطبيق يرسل مباشرة لـ Evolution API (API key في التطبيق).
-
-**مقبول حالياً** للتطوير والاختبار. **غير مقبول** للإنتاج لأسباب أمنية.
-
-**الحل المستقبلي:** webhook في n8n يستقبل طلبات الإرسال:
+**زر واتساب يظهر فقط لو فيه رقم شركة:**
+```dart
+// في _WhatsAppCard:
+if (!employee.canConnectWhatsApp) {
+  return Text('لا يوجد رقم شركة مرتبط');
+}
+// ... باقي الكود (QR + محادثات)
 ```
-POST https://w.alfal.co:5443/webhook/brain-send
-Body: { "session": "sales", "to": "966501234567", "text": "..." }
+
+### 4.5 QR Screen — التدفق الجديد
+
+```dart
+// في whatsapp_qr_screen.dart — عند الضغط على "ربط واتساب":
+// 1. فحص لو الجلسة موجودة
+final state = await service.checkConnection(sessionName);
+if (state == 'error') {
+  // 2. إنشاء جلسة جديدة أول مرة
+  await service.createSession(sessionName);
+}
+// 3. جلب QR code
+final qr = await service.getQrCode(sessionName);
 ```
 
 ---
 
-## 3. المعمارية المستهدفة (الرؤية الكاملة)
+## 5. Evolution API — إنشاء Session ديناميكي
 
-### واتساب كنظام تشغيل للشركة
+### Endpoint:
+```http
+POST /instance/create
+Content-Type: application/json
+Header: apikey: {EVOLUTION_API_KEY}
+
+{
+  "instanceName": "966555339356",
+  "integration": "WHATSAPP-BAILEYS",
+  "qrcode": true
+}
+```
+
+### بعدها:
+```http
+GET /instance/connect/966555339356    → QR code (base64)
+GET /instance/connectionState/966555339356 → حالة الاتصال
+```
+
+---
+
+## 6. المعمارية المستهدفة (محدّثة)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    مصادر الرسائل                         │
+│  التطبيق (Flutter)                                       │
 │                                                          │
-│   عميل يرسل          مندوب يرسل          مورد يرسل     │
-│   "أبغى 20 كرتون"    "تم التسليم"        "وصل البضاعة" │
-└──────────┬─────────────┬──────────────────┬─────────────┘
-           │             │                  │
-           ▼             ▼                  ▼
+│  موظف يدخل → يسحب cell_phone من ERPNext                │
+│  → يسوي session بالرقم → QR → يمسح → متصل              │
+│  → يشوف محادثات رقمه → يرسل/يستقبل                     │
+└──────────────────────┬───────────────────────────────────┘
+                       │ Evolution API (حالياً)
+                       │ n8n proxy (مستقبلاً)
+                       ▼
 ┌──────────────────────────────────────────────────────────┐
-│              Evolution API (6 أرقام شركة)                │
+│  Evolution API (w.alfal.co:8085)                         │
+│                                                          │
+│  Sessions ديناميكية (per phone number):                  │
+│  966555339356 → مدير المالية                             │
+│  966550442804 → مدير المبيعات                            │
+│  ... أي رقم يُربط من التطبيق                            │
 │                                                          │
 │  كل رسالة → webhook → n8n                               │
 └──────────────────────┬───────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────┐
-│                    n8n (المحرك)                           │
+│  n8n (المحرك)                                            │
 │                                                          │
-│  الطبقة 1: التسجيل ✅ (مبني وشغال)                      │
-│  ├── حفظ في brain.raw_events                            │
-│  ├── حفظ في brain.messages                              │
-│  ├── إدارة brain.groups + members                       │
-│  └── حفظ في ERPNext WhatsApp Message                    │
-│                                                          │
-│  الطبقة 2: الفهم ⬜ (المرحلة القادمة)                    │
-│  ├── مطابقة الرقم → Customer/Supplier في ERPNext        │
-│  ├── AI Parser: "أبغى 20 كرتون" → {item, qty}          │
-│  ├── تصنيف: طلب / استفسار / شكوى / تأكيد               │
-│  └── تحديث brain.messages.classification                 │
-│                                                          │
-│  الطبقة 3: الأتمتة ⬜ (بعدها)                            │
-│  ├── طلب عميل → Sales Order (مسودة)                     │
-│  ├── "تم التسليم" → Delivery Note.status = Delivered    │
-│  ├── صورة تحويل → Payment Entry (مسودة)                 │
-│  ├── تنبيه: طلب جديد → push notification للمندوب       │
-│  └── رد تلقائي: "تم استلام طلبك، رقم الطلب: SO-00123"  │
-│                                                          │
-│  الطبقة 4: خدمة التطبيق ⬜ (بعدها)                      │
-│  ├── /webhook/brain-api  → التطبيق يقرأ المحادثات       │
-│  ├── /webhook/brain-send → التطبيق يرسل رسائل           │
-│  └── /webhook/brain-status → حالة الجلسات               │
-└─────┬────────────┬────────────┬──────────────────────────┘
-      │            │            │
-      ▼            ▼            ▼
-  brain DB     ERPNext      Flutter App
-  (تخزين)    (مستندات)    (واجهة المستخدم)
+│  1. يخزن في brain.messages ✅                           │
+│  2. يحدد هوية المرسل (brain.identities)                 │
+│  3. يوجّه للبوت المناسب حسب routing_rules               │
+│  4. البوت يحلل ويرد (باستخدام مستخدمه في ERPNext)       │
+└─────┬──────────────┬──────────────┬─────────────────────┘
+      │              │              │
+      ▼              ▼              ▼
+  brain DB       ERPNext        6 بوتات
+  (تخزين)      (مستندات)      (مساعدين AI)
+               البوت يسجل      كل بوت = مستخدم ERPNext
+               باسمه هنا       يساعد المدير صاحب الرقم
 ```
 
 ---
 
-## 4. خطة العمل المرحلية
+## 7. خطة العمل المرحلية
 
-### المرحلة الحالية: إصلاح التعارضات (قبل أي عمل جديد)
+### المرحلة الحالية: تصحيح نموذج الجلسات
 
-| # | المهمة | المسؤول | الأثر |
-|---|--------|---------|-------|
-| A1 | إصلاح session mapping: department → routing_rules | التطبيق | كل موظف يشوف واتساب قسمه |
-| A2 | فلترة المحادثات بالقسم | التطبيق | عزل المحادثات حسب الصلاحية |
-| A3 | ربط 6 أرقام بـ QR scan | يدوي (محمد) | تشغيل الجلسات فعلياً |
+| # | المهمة | المسؤول | التفاصيل |
+|---|--------|---------|----------|
+| A1 | تعديل `sessionName` → يُشتق من `cellPhone` | التطبيق | لا أرقام محفوظة في الكود |
+| A2 | إضافة `createSession()` في WhatsApp service | التطبيق | لإنشاء session ديناميكي |
+| A3 | فلترة المحادثات برقم الموظف | التطبيق | كل موظف يشوف رقمه فقط |
+| A4 | زر واتساب يظهر فقط لمن عنده `cell_phone` | التطبيق | `canConnectWhatsApp` getter |
+| A5 | تمرير `sessionName` عند فتح الشات | التطبيق | لتفعيل زر الإرسال |
 
 ### المرحلة B: واتساب = يفهم (الطبقة 2)
 
@@ -196,89 +304,61 @@ Body: { "session": "sales", "to": "966501234567", "text": "..." }
 |---|--------|---------|----------|
 | B1 | مطابقة رقم → عميل/مورد | n8n + brain | رقم الواتساب → Customer.mobile_no في ERPNext |
 | B2 | عرض اسم العميل بدل الرقم | التطبيق | المحادثات تعرض "محمد الأحمدي" بدل "+966501234567" |
-| B3 | تصنيف الرسائل (AI أو keywords) | n8n | "أبغى" = طلب، "كم سعر" = استفسار، "تأخر" = شكوى |
-| B4 | تنبيه الموظف المناسب | n8n → push | طلب جديد → notification للمندوب |
+| B3 | تصنيف الرسائل (AI أو keywords) | n8n | "أبغى" = طلب، "كم سعر" = استفسار |
+| B4 | تنبيه الموظف المناسب | n8n → push | طلب جديد → notification |
 
 ### المرحلة C: واتساب = ينفّذ (الطبقة 3)
 
 | # | المهمة | المسؤول | التفاصيل |
 |---|--------|---------|----------|
-| C1 | طلب عميل → Sales Order مسودة | n8n → ERPNext API | AI يفهم "20 كرتون دجاج" → SO |
+| C1 | طلب عميل → Sales Order مسودة | n8n → ERPNext API | باستخدام مستخدم البوت |
 | C2 | "تم التسليم" → Delivery Note | n8n → ERPNext API | المندوب يأكد بكلمة واحدة |
-| C3 | صورة تحويل → Payment Entry | n8n → ERPNext API | OCR أو يدوي مع ربط بالفاتورة |
+| C3 | صورة تحويل → Payment Entry | n8n → ERPNext API | OCR أو يدوي |
 | C4 | رد تلقائي للعميل | n8n → Evolution API | "تم استلام طلبك رقم SO-00123" |
 
 ### المرحلة D: التطبيق يمر عبر n8n (الطبقة 4)
 
 | # | المهمة | المسؤول | التفاصيل |
 |---|--------|---------|----------|
-| D1 | n8n brain-api webhook | n8n | التطبيق يقرأ من brain بدل ERPNext مباشرة |
-| D2 | n8n brain-send webhook | n8n | التطبيق يرسل عبر n8n (API key server-side) |
-| D3 | إزالة Evolution API key من التطبيق | التطبيق | الأمان: المفتاح في السيرفر فقط |
-| D4 | Meta Cloud API provider | التطبيق + n8n | عند اعتماد Meta — نبدّل المزود بدون تغيير التطبيق |
+| D1 | n8n brain-api webhook | n8n | التطبيق يقرأ من brain |
+| D2 | n8n brain-send webhook | n8n | التطبيق يرسل عبر n8n |
+| D3 | إزالة Evolution API key من التطبيق | التطبيق | الأمان |
+| D4 | Meta Cloud API provider | التطبيق + n8n | عند اعتماد Meta |
 
 ---
 
-## 5. الربط بين المشاريع
-
-```
-alfal-mobile (Flutter)
-    │
-    │ يقرأ: ERPNext API (حالياً) → n8n brain-api (مستقبلاً)
-    │ يرسل: Evolution API (حالياً) → n8n brain-send (مستقبلاً)
-    │
-alfal-brain (PostgreSQL + n8n)
-    │
-    │ يستقبل: Evolution API webhooks
-    │ يخزن: brain.messages, brain.groups, brain.raw_events
-    │ يخدم: التطبيق + البوتات + التقارير
-    │
-alfal-bots (6 بوتات OpenClaw)
-    │
-    │ Baileys: ❌ معطّل
-    │ المستقبل: يستقبل من n8n → يرد عبر Evolution API
-    │
-ERPNext (w.alfal.co)
-    │
-    │ المصدر: عملاء، فواتير، موظفين، مخزون
-    │ الهدف: Sales Orders, Delivery Notes, Payment Entries (من واتساب)
-```
-
----
-
-## 6. القواعد الذهبية
+## 8. القواعد الذهبية (محدّثة)
 
 ### للتطبيق (alfal-mobile):
-1. **لا تبني session per employee** — استخدم department → routing_rules
-2. **الإرسال المباشر مقبول للتطوير** — لكن صمم الكود جاهز للتحويل لـ n8n
-3. **WhatsAppService interface ممتاز** — حافظ عليه، سنضيف n8nProxyProvider لاحقاً
-4. **فلتر المحادثات بالقسم** — كل موظف يشوف قسمه فقط
+1. **الرقم للموظف وليس للبوت/القسم** — session = cellPhone من ERPNext
+2. **لا تحفظ أرقام في الكود** — كل شيء يُسحب من ERPNext API
+3. **WhatsAppService interface ممتاز** — أضف `createSession()` وحافظ على الباقي
+4. **فلتر المحادثات برقم الموظف** — كل موظف يشوف رقمه فقط
+5. **زر واتساب مشروط** — يظهر فقط لو `canConnectWhatsApp`
+
+### للبوتات:
+1. **البوت مساعد وليس مالك** — الرقم للإنسان، البوت يساعده
+2. **كل إجراء يُسجل بمستخدم البوت** — finance-bot@alfal.co ينشئ Payment Entry
+3. **البوت يستقبل من n8n** — ما يتصل بواتساب مباشرة
 
 ### للبنية التحتية (alfal-brain):
 1. **n8n هو المحرك** — كل أتمتة تمر عبره
-2. **brain.messages هو مصدر الحقيقة** — التطبيق يقرأ منه (حالياً عبر ERPNext، مستقبلاً مباشرة)
+2. **brain.messages مصدر الحقيقة** — التطبيق يقرأ منه
 3. **Evolution API = المزود الحالي** — Meta Cloud API = المستقبلي
 4. **WAHA = متوقف** — لا تفعّله إلا في الطوارئ
 
-### للجميع:
-1. **لا تكرر البيانات** — مصدر واحد لكل معلومة
-2. **لا تتصل مباشرة** — كل شيء عبر API/webhook محدد
-3. **خطة قبل تنفيذ** — أي تغيير كبير يحتاج مراجعة في هذا الملف أولاً
-
 ---
 
-## 7. مزودي واتساب — القرار النهائي
+## 9. مزودي واتساب — القرار النهائي
 
 | المزود | الدور | متى |
 |--------|-------|-----|
-| **Evolution API** | أساسي — QR code | الآن وحتى اعتماد Meta |
+| **Evolution API** | أساسي — QR code + sessions ديناميكية | الآن وحتى اعتماد Meta |
 | **Meta Cloud API** | رسمي — API بدون QR | عند اعتماد التطبيق من Meta |
 | **WAHA** | احتياطي طوارئ | فقط لو فشل Evolution كلياً |
 | **Baileys مباشر** | ملغي | لا يُستخدم أبداً |
 
-**الانتقال من Evolution إلى Meta:** التطبيق جاهز بفضل `WhatsAppService` interface — نضيف `MetaCloudProvider` implements `WhatsAppService` ونبدّل.
-
 ---
 
 > هذا الملف يُحدّث عند كل قرار معماري كبير.
-> آخر تحديث: 2026-02-27
+> آخر تحديث: 2026-02-27 — تصحيح: الرقم للموظف وليس للقسم/البوت

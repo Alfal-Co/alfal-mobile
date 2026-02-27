@@ -28,23 +28,30 @@
 
 **مهم:** صمم WhatsApp service كـ interface عشان التبديل بين Evolution و Meta يكون سهل مستقبلاً.
 
-### نموذج الجلسات (مهم جداً)
+### نموذج الجلسات (مهم جداً — محدّث 2026-02-27)
 
 ```
-❌ خطأ:  كل موظف → جلسة خاصة (wa_EMP-0001)  ← ما فيه 67 رقم هاتف!
-✅ صحيح: كل قسم → جلسة واحدة (sales, hr, purchasing...)
+❌ خطأ:  كل موظف → جلسة خاصة (wa_EMP-0001)
+❌ خطأ:  كل قسم → جلسة واحدة (sales, hr, purchasing...)
+✅ صحيح: كل رقم شركة → جلسة واحدة (الرقم ملك الموظف/المدير وليس البوت)
 ```
+
+**الأرقام رجعت لأصحابها (المدراء) بعد تعطيل Baileys.**
+البوت مساعد فقط — له مستخدم ERPNext يسجل إجراءاته باسمه.
 
 الربط:
 ```
-Employee.department → routing_rules.session_name
-  "Sales"      → "sales"      (+966550442804)
-  "HR"         → "hr"         (+966565564518)
-  "Purchasing" → "purchasing"  (+966564826335)
-  "Finance"    → "finance"    (+966555339356)
-  "Accounting" → "accounting" (+966595822738)
-  أي قسم آخر  → "secretary"  (+966563203204)  ← الافتراضي
+Employee.cell_phone → session ديناميكي في Evolution API
+  مدير المالية (cell_phone: +966555339356) → session: 966555339356
+  مدير المبيعات (cell_phone: +966550442804) → session: 966550442804
+  أي موظف عنده cell_phone → session بالرقم
+
+  موظف بدون cell_phone → لا يقدر يربط واتساب
+
+لا تحفظ أرقام في الكود — اسحبها من ERPNext فقط!
 ```
+
+**التفاصيل الكاملة:** `docs/ARCHITECTURE_REVIEW.md`
 
 ---
 
@@ -60,6 +67,22 @@ https://w.alfal.co:8085
 Header: apikey: {EVOLUTION_API_KEY}
 ```
 الـ API Key يُخزّن في environment variable — لا تكتبه في الكود.
+
+### 0. إنشاء Session جديد (مطلوب أول مرة)
+```http
+POST /instance/create
+Content-Type: application/json
+```
+**Body:**
+```json
+{
+  "instanceName": "966555339356",
+  "integration": "WHATSAPP-BAILEYS",
+  "qrcode": true
+}
+```
+- `instanceName` = رقم الموظف بدون + (cell_phone من ERPNext)
+- يُنفّذ مرة واحدة فقط — لو الـ session موجود مسبقاً ممكن يرجع خطأ (تحقق أولاً)
 
 ### 1. جلب QR Code لربط واتساب
 ```http

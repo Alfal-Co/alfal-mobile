@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../provider/employee_provider.dart';
 import '../model/employee.dart';
-import '../../whatsapp/provider/whatsapp_provider.dart';
 import '../../whatsapp/view/whatsapp_qr_screen.dart';
 import '../../whatsapp/view/conversations_screen.dart';
 
@@ -465,15 +464,12 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _WhatsAppCard extends ConsumerWidget {
+class _WhatsAppCard extends StatelessWidget {
   final Employee employee;
   const _WhatsAppCard({required this.employee});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final connectionAsync =
-        ref.watch(connectionStateProvider(employee.sessionName));
-
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -489,114 +485,50 @@ class _WhatsAppCard extends ConsumerWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
-                // Connection status indicator
-                connectionAsync.when(
-                  loading: () => const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  error: (_, __) => Icon(Icons.circle,
-                      size: 10, color: Colors.grey[400]),
-                  data: (state) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.circle,
-                        size: 10,
-                        color: state == 'open'
-                            ? Colors.green
-                            : Colors.red[300],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        state == 'open' ? 'متصل' : 'غير متصل',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: state == 'open'
-                              ? Colors.green[700]
-                              : Colors.red[400],
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  employee.sessionName,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
-            // Show different UI based on connection state
-            connectionAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => _buildConnectButton(context),
-              data: (state) {
-                if (state == 'open') {
-                  return _buildConnectedUI(context);
-                }
-                return _buildConnectButton(context);
-              },
+            // QR / Connection button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WhatsAppQrScreen(
+                          sessionName: employee.sessionName),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.qr_code),
+                label: const Text('ربط واتساب (QR)'),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Conversations button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ConversationsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.forum),
+                label: const Text('المحادثات'),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  /// Not connected: show only QR button
-  Widget _buildConnectButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  WhatsAppQrScreen(sessionName: employee.sessionName),
-            ),
-          );
-        },
-        icon: const Icon(Icons.qr_code),
-        label: const Text('ربط واتساب (QR)'),
-      ),
-    );
-  }
-
-  /// Connected: show conversations + QR reconnect
-  Widget _buildConnectedUI(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ConversationsScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.forum),
-            label: const Text('المحادثات'),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      WhatsAppQrScreen(sessionName: employee.sessionName),
-                ),
-              );
-            },
-            icon: Icon(Icons.qr_code, size: 16, color: Colors.grey[600]),
-            label: Text('إعادة ربط',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ),
-        ),
-      ],
     );
   }
 }

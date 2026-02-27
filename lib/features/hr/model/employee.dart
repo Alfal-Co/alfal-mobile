@@ -54,49 +54,10 @@ class Employee {
     );
   }
 
-  /// WhatsApp session name derived from department → routing_rules.
-  /// The company has 6 phone numbers (6 sessions), NOT one per employee.
-  /// Priority: 1) Custom override, 2) Department mapping, 3) Default 'secretary'
-  String get sessionName {
-    if (whatsappSession != null && whatsappSession!.isNotEmpty) {
-      return whatsappSession!;
-    }
-    return _departmentToSession(department);
-  }
-
-  /// Map department name to WhatsApp session (6 company numbers).
-  /// Matches brain.routing_rules in alfal-brain.
-  static String _departmentToSession(String? dept) {
-    if (dept == null || dept.isEmpty) return 'secretary';
-    final d = dept.toLowerCase().trim();
-    // English names
-    if (d.contains('sales')) return 'sales';
-    if (d.contains('hr') || d.contains('human resource')) return 'hr';
-    if (d.contains('purchas')) return 'purchasing';
-    if (d.contains('finance')) return 'finance';
-    if (d.contains('account')) return 'accounting';
-    // Arabic names
-    if (d.contains('مبيعات')) return 'sales';
-    if (d.contains('موارد بشرية')) return 'hr';
-    if (d.contains('مشتريات')) return 'purchasing';
-    if (d.contains('مالية')) return 'finance';
-    if (d.contains('محاسبة')) return 'accounting';
-    return 'secretary'; // Default session
-  }
-
-  /// The phone number of this employee's department session.
-  /// Used to filter WhatsApp conversations by department.
-  String get sessionPhone {
-    const sessionPhones = {
-      'secretary': '+966563203204',
-      'sales': '+966550442804',
-      'hr': '+966565564518',
-      'purchasing': '+966564826335',
-      'finance': '+966555339356',
-      'accounting': '+966595822738',
-    };
-    return sessionPhones[sessionName] ?? '+966563203204';
-  }
+  /// WhatsApp session name: custom field or derived from Employee ID
+  /// e.g. HR-EMP-00001 → wa_HR-EMP-00001
+  String get sessionName =>
+      whatsappSession ?? 'wa_${name.replaceAll(' ', '_')}';
 
   /// First letter for avatar
   String get initial =>
