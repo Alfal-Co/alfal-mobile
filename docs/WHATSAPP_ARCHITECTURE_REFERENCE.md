@@ -1,6 +1,7 @@
 # بنية واتساب الموحدة — مرجع لتطبيق الجوال
 
-> هذا الملف مرجع لمطور التطبيق. المصدر الأساسي: `Alfal-Co/alfal-brain`
+> هذا الملف مرجع تقني (endpoints + أمثلة). للمراجعة المعمارية الشاملة: `docs/ARCHITECTURE_REVIEW.md`
+> المصدر الأساسي: `Alfal-Co/alfal-brain`
 
 ## البنية العامة
 
@@ -26,6 +27,24 @@
 | **Baileys مباشر** | ❌ معطّل | لا ترجع له نهائياً |
 
 **مهم:** صمم WhatsApp service كـ interface عشان التبديل بين Evolution و Meta يكون سهل مستقبلاً.
+
+### نموذج الجلسات (مهم جداً)
+
+```
+❌ خطأ:  كل موظف → جلسة خاصة (wa_EMP-0001)  ← ما فيه 67 رقم هاتف!
+✅ صحيح: كل قسم → جلسة واحدة (sales, hr, purchasing...)
+```
+
+الربط:
+```
+Employee.department → routing_rules.session_name
+  "Sales"      → "sales"      (+966550442804)
+  "HR"         → "hr"         (+966565564518)
+  "Purchasing" → "purchasing"  (+966564826335)
+  "Finance"    → "finance"    (+966555339356)
+  "Accounting" → "accounting" (+966595822738)
+  أي قسم آخر  → "secretary"  (+966563203204)  ← الافتراضي
+```
 
 ---
 

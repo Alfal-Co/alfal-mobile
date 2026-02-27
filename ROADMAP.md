@@ -31,16 +31,17 @@ Flutter App (واجهة بسيطة + Offline)
 نصف النظام في التطبيق (واجهة ميدانية سريعة + واتساب + GPS)
 ```
 
-### قرارات معمارية (100+ موظف)
+### قرارات معمارية
 
 ```
-1. Session naming: wa_<EMPLOYEE_ID> (ديناميكي من ERPNext، ليس hardcoded)
-2. تخزين الربط: Employee.whatsapp_session (Custom Field في ERPNext)
-3. العزل: كل موظف يرى جلسته فقط (backend يتحقق user → employee → session)
-4. البنية الحالية:  Flutter → Evolution API (مباشر، للتطوير)
-   البنية النهائية: Flutter → ERPNext Proxy → Evolution (للإنتاج)
-5. Interface جاهز: abstract WhatsAppService → يدعم Evolution أو Meta API
-6. Pagination: رسائل بالتدريج (50 لكل صفحة) + cache محلي
+1. Session naming: department → routing_rules → session (6 جلسات لـ 6 أقسام، ليس per employee)
+   السبب: 6 أرقام شركة فقط — كل قسم يتشارك رقم واحد
+2. العزل: كل موظف يرى محادثات قسمه فقط (department → session → messages)
+3. البنية الحالية:  Flutter → Evolution API (مباشر — مقبول للتطوير)
+   البنية النهائية: Flutter → n8n → Evolution API (API key في السيرفر فقط)
+4. Interface جاهز: abstract WhatsAppService → يدعم Evolution / Meta / n8n Proxy
+5. Pagination: رسائل بالتدريج (50 لكل صفحة) + cache محلي
+6. المرجع الكامل: docs/ARCHITECTURE_REVIEW.md
 ```
 
 ---
