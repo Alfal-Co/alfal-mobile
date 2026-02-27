@@ -45,7 +45,7 @@ class Employee {
       validUpto: json['valid_upto'] as String?,
       userId: json['user_id'] as String?,
       gender: json['gender'] as String?,
-      cellPhone: json['cell_phone'] as String?,
+      cellPhone: json['cell_number'] as String?,
       personalPhone: json['personal_phone'] as String?,
       companyEmail: json['company_email'] as String?,
     );
