@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/whatsapp_service.dart';
+import '../../hr/provider/employee_provider.dart';
 import '../provider/whatsapp_provider.dart';
 import 'chat_screen.dart';
 
@@ -10,6 +11,7 @@ class ConversationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final conversationsAsync = ref.watch(conversationsProvider);
+    final employeeAsync = ref.watch(myEmployeeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('محادثات واتساب')),
@@ -48,6 +50,9 @@ class ConversationsScreen extends ConsumerWidget {
             );
           }
 
+          // Get session name for sending messages
+          final sessionName = employeeAsync.valueOrNull?.sessionName;
+
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(conversationsProvider),
             child: ListView.builder(
@@ -55,7 +60,8 @@ class ConversationsScreen extends ConsumerWidget {
               itemBuilder: (context, index) {
                 return _ConversationTile(
                   message: conversations[index],
-                  onTap: () => _openChat(context, conversations[index]),
+                  onTap: () => _openChat(
+                      context, conversations[index], sessionName),
                 );
               },
             ),
@@ -65,11 +71,14 @@ class ConversationsScreen extends ConsumerWidget {
     );
   }
 
-  void _openChat(BuildContext context, WaMessage msg) {
+  void _openChat(BuildContext context, WaMessage msg, String? sessionName) {
     final phone = msg.isIncoming ? msg.from : msg.to;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatScreen(phone: phone),
+        builder: (_) => ChatScreen(
+          phone: phone,
+          sessionName: sessionName,
+        ),
       ),
     );
   }
