@@ -93,7 +93,7 @@ class _ProfileContent extends StatelessWidget {
         const SizedBox(height: 12),
 
         // WhatsApp section
-        _WhatsAppCard(),
+        _WhatsAppCard(employee: employee),
       ],
     );
   }
@@ -465,6 +465,9 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _WhatsAppCard extends StatelessWidget {
+  final Employee employee;
+  const _WhatsAppCard({required this.employee});
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -481,6 +484,11 @@ class _WhatsAppCard extends StatelessWidget {
                   'واتساب',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
+                const Spacer(),
+                Text(
+                  employee.sessionName,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -492,8 +500,8 @@ class _WhatsAppCard extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const WhatsAppQrScreen(sessionName: 'hr'),
+                      builder: (_) => WhatsAppQrScreen(
+                          sessionName: employee.sessionName),
                     ),
                   );
                 },
